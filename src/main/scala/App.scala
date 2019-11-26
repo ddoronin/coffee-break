@@ -8,14 +8,18 @@ import chat.ChatRoom
 import chat.Api
 import chat.Api.SessionGranted
 import chat.Api.PostMessage
+import chat.Api.ReceivedMessage
 
 object Alice {
   def apply(): Behavior[Api.SessionCommand] = {
     Behaviors.receive{(context, message) => 
       message match {
         case SessionGranted(chat) => {
-          chat ! PostMessage("yo")
-          chat ! PostMessage("this is Alice")
+          chat ! PostMessage("hey there!")
+          chat ! PostMessage("This is Alice")
+          Behaviors.same
+        }
+        case ReceivedMessage(from, message) => {
           Behaviors.same
         }
         case _ => ???
@@ -25,10 +29,17 @@ object Alice {
 }
 
 object Bob {
-  def apply(): Behavior[Api.SessionCommand] = {
+  def apply(maybeChat: Option[ActorRef[Api.SessionCommand]] = None): Behavior[Api.SessionCommand] = {
     Behaviors.receiveMessage {
       case SessionGranted(chat) => {
         chat ! PostMessage("hey! Bob is here!")
+        Bob(Some(chat))
+      }
+      case ReceivedMessage(from, message) => {
+        println(s"$from: $message")
+        if (from == "Alice" && message.contains("hey")) {
+          maybeChat.foreach(chat => chat ! PostMessage("Hey Alice! Long time no see!"))
+        }
         Behaviors.same
       }
       case _ => ???

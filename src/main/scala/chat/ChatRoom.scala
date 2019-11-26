@@ -13,7 +13,7 @@ object ChatRoom {
         Behaviors.receive{(context, message) => {
             message match {
                 case Api.GetSession(token, client) => {
-                    val session = context.spawn(Session(token, context.getSelf), URLEncoder.encode(token))
+                    val session = context.spawn(Session(token, client, context.getSelf), URLEncoder.encode(token))
                     client ! Api.SessionGranted(handle = session)
                     apply((token, session)::sessions)
                 }
@@ -29,15 +29,14 @@ object ChatRoom {
 }
 
 object Session {
-    def apply(token: String, chatRoom: ActorRef[Api.RoomCommand]): Behavior[Api.SessionCommand] = {
+    def apply(token: String, client: ActorRef[Api.SessionCommand], chatRoom: ActorRef[Api.RoomCommand]): Behavior[Api.SessionCommand] = {
         Behaviors.receiveMessage {
             case PostMessage(message) => {
-                println(s"$token > $message")
                 chatRoom ! Notify(token, message)
                 Behaviors.same
             }
-            case Api.ReceivedMessage(somebody, message) => {
-                println(s"$token <<< $somebody: $message")
+            case original @ Api.ReceivedMessage(somebody, message) => {
+                client ! original
                 Behaviors.same
             }
             case _ => ???
