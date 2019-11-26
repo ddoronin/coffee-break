@@ -24,6 +24,18 @@ object Alice {
   }
 }
 
+object Bob {
+  def apply(): Behavior[Api.SessionCommand] = {
+    Behaviors.receiveMessage {
+      case SessionGranted(chat) => {
+        chat ! PostMessage("hey! Bob is here!")
+        Behaviors.same
+      }
+      case _ => ???
+    }
+  }
+}
+
 object AppSystem {
   trait Command
   case object Start extends Command
@@ -34,9 +46,11 @@ object AppSystem {
         case Start => {
           val chatRoom = context.spawn(ChatRoom(), "chat-room")
 
-          val alice = context.spawn(Alice(), "alice")
-          chatRoom ! Api.GetSession("alice", alice)
+          val alice = context.spawn(Alice(), "alice-actor")
+          chatRoom ! Api.GetSession("Alice", alice)
 
+          val bob = context.spawn(Bob(), "bob-actor")
+          chatRoom ! Api.GetSession("Bob", bob)
 
           Behaviors.same
         }

@@ -6,14 +6,22 @@ import java.net.URLEncoder
 import akka.actor.typed.ActorRef
 import chat.Api.PostMessage
 
+final case class Notify(token: String, message: String) extends Api.RoomCommand
+
 object ChatRoom {
-    def apply(sessions: List[ActorRef[Api.SessionCommand]] = Nil): Behavior[Api.RoomCommand] = {
+    def apply(sessions: List[(String, ActorRef[Api.SessionCommand])] = Nil): Behavior[Api.RoomCommand] = {
         Behaviors.receive{(context, message) => {
             message match {
                 case Api.GetSession(token, client) => {
-                    val session = context.spawn(Session(token), URLEncoder.encode(token))
+                    val session = context.spawn(Session(token, context.getSelf), URLEncoder.encode(token))
                     client ! Api.SessionGranted(handle = session)
-                    apply(session::sessions)
+                    apply((token, session)::sessions)
+                }
+                case Notify(token, message) => {
+                    sessions.foreach{
+                        case (_, session) => session ! Api.ReceivedMessage(token, message)
+                    }
+                    Behaviors.same
                 }
             }
         }}
@@ -21,15 +29,18 @@ object ChatRoom {
 }
 
 object Session {
-    def apply(token: String): Behavior[Api.SessionCommand] = {
-        Behaviors.receive{(context, message) => {
-            message match {
-                case PostMessage(message) => {
-                    println(s"$token > $message")
-                    Behaviors.same
-                }
-                case _ => ???
+    def apply(token: String, chatRoom: ActorRef[Api.RoomCommand]): Behavior[Api.SessionCommand] = {
+        Behaviors.receiveMessage {
+            case PostMessage(message) => {
+                println(s"$token > $message")
+                chatRoom ! Notify(token, message)
+                Behaviors.same
             }
-        }}
+            case Api.ReceivedMessage(somebody, message) => {
+                println(s"$token <<< $somebody: $message")
+                Behaviors.same
+            }
+            case _ => ???
+        }
     }
 }

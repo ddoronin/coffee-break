@@ -2,7 +2,7 @@ package chat
 import akka.actor.typed.ActorRef
 
 object Api {
-    sealed trait RoomCommand
+    trait RoomCommand
     final case class GetSession(token: String, client: ActorRef[SessionCommand]) extends RoomCommand
 
     sealed trait SessionEvent
@@ -10,4 +10,5 @@ object Api {
 
     sealed trait SessionCommand
     final case class PostMessage(message: String) extends SessionCommand
+    final case class ReceivedMessage(from: String, message: String) extends SessionCommand
 }
